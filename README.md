@@ -1,3 +1,5 @@
+not work yet, the audio buffer returned save to a mp3 or pcm file
+and the audio player not work
 # xfyun_tts 
 this is a tts driver using [xfyun](https://xfyun.cn) for unitts
 
@@ -21,8 +23,10 @@ import unitts
 set_app_info(appid, apikey, apisecret)
 tts = unitts.init('xfyun_tts')
 
-tts.say('hello xfyun')
 tts.startLoop()
+while True:
+	x = input()
+	tts.say(x)
 tts.endLoop()
 ```
 

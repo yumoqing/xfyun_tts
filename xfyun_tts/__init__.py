@@ -1,4 +1,5 @@
 import os
+import websocket
 import datetime
 import hashlib
 import base64
@@ -30,14 +31,14 @@ app_info = {}
 def set_app_info(appid, appkey, appsecret):
 	app_info.update({
 		'appid':appid,
-		'appkey':appkey',
+		'appkey':appkey,
 		'appsecret':appsecret
 	})
 
 def buildDriver(proxy):
 	return XFYunTTSDriver(proxy)
 
-class XFYunTTS(BaseDriver):
+class XFYunTTSDriver(BaseDriver):
 	def __init__(self, proxy):
 		BaseDriver.__init__(self, proxy)
 		self.ready = False
@@ -46,17 +47,16 @@ class XFYunTTS(BaseDriver):
 		self.APISecret = app_info.get('appsecret')
 		self.CommonArgs = {"app_id":app_info.get('appid')}
 		self.BusinessArgs = {
-			"aue": "lame",
-			"sfl":1,
+			"aue": "raw",
 			"auf": "audio/L16;rate=16000", 
 			"vcn": "xiaoyan", 
 			"tte": "utf8"
 		}
 		self.player = AudioPlayer(on_stop=self.speak_finish)
 		self.ws = websocket.WebSocket()
-		self.ws.connect(self._ws_url)
+		self.ws.connect(self._ws_url() )
 
-	def xfyun_tts(self, text, busi_params = {})
+	def xfyun_tts(self, text, busi_params = {}):
 		data = self.text_encode(text)
 		d = {
 			'common':self.CommonArgs,
@@ -66,9 +66,10 @@ class XFYunTTS(BaseDriver):
 		buf = json.dumps(d)
 		self.ws.send(buf)
 		d = self.ws.recv()
-		audiofile = temp_file(suffix='.mp3')
+		audiofile = temp_file(suffix='.pcm')
 		while True:
 			ret = self.on_message(d, audiofile)
+			print('ret=', ret)
 			if ret == 'Done':
 				return audiofile
 			if ret == 'KeepGoing':
@@ -105,15 +106,16 @@ class XFYunTTS(BaseDriver):
 		url = url + '?' + urlencode(v)
 		# print("date: ",date)
 		# print("v: ",v)
-		# 此处打印出建立连接时候的url,参考本demo的时候可取消上方打印的注释，比对
-		相同参数时生成的url与自己代码生成的url是否一致
+		# 此处打印出建立连接时候的url,
+		# 参考本demo的时候可取消上方打印的注释，比对
+		# 相同参数时生成的url与自己代码生成的url是否一致
 		# print('websocket url :', url)
 		return url
 
 	def text_encode(self, text):
 		data = {
 			"status": 2, 
-			"text": str(base64.b64encode(self.Text.encode('utf-8')), "UTF8")
+			"text": str(base64.b64encode(text.encode('utf-8')), "UTF8")
 		}
 		return data
 
@@ -150,7 +152,7 @@ class XFYunTTS(BaseDriver):
 		self.ready = True
 
 	def destroy(self):
-		self.close()		# stop the websocket
+		self.ws.close()		# stop the websocket
 		self.player.unload()
 		if self.task:
 			self.running = False
@@ -168,49 +170,51 @@ class XFYunTTS(BaseDriver):
 		x = self.xfyun_tts(sentence.text, busi_params=busi_params)
 		if x is None:
 			return None, None
+		return sentence.start_pos, x
 
 	def command(self, pos, audiofile):
+		print('pos=', pos, 'audiofile=', audiofile)
 		self.player.set_source(audiofile)
 		self.player.play()
 
-    def stop(self):
-        if self._proxy.isBusy():
-            self._completed = False
-        self.player.stop()
+	def stop(self):
+		if self._proxy.isBusy():
+			self._completed = False
+		self.player.stop()
 
-    def getProperty(self, name):
-        if name == 'normal_voice':
-            return self.normal_voice
-        if name == 'dialog_voice':
-            return self.dialog_voice
+	def getProperty(self, name):
+		if name == 'normal_voice':
+			return self.normal_voice
+		if name == 'dialog_voice':
+			return self.dialog_voice
 
-        if name == 'voices':
-            return Voices
+		if name == 'voices':
+			return Voices
 
-        if name == 'voice':
-            for v in Voices:
-                if v.id == self.voice:
-                    return v
-            return None
-        if name == 'rate':
-            return self.rate
-        if name == 'volume':
-            return self.volume
-        if name == 'pitch':
-            return self.pitch
+		if name == 'voice':
+			for v in Voices:
+				if v.id == self.voice:
+					return v
+			return None
+		if name == 'rate':
+			return self.rate
+		if name == 'volume':
+			return self.volume
+		if name == 'pitch':
+			return self.pitch
 
-    def setProperty(self, name, value):
-        if name == 'normal_voice':
-            self.normal_voice = value
-        if name == 'dialog_voice':
-            self.dialog_voice = value
-        if name == 'voice':
-            self.voice = value
-        if name == 'rate':
-            self.rate = value
-        if name == 'pitch':
-            self.rate = value
-        if name == 'language':
-            self.language = value
-        if name == 'volume':
-            self.volume = value
+	def setProperty(self, name, value):
+		if name == 'normal_voice':
+			self.normal_voice = value
+		if name == 'dialog_voice':
+			self.dialog_voice = value
+		if name == 'voice':
+			self.voice = value
+		if name == 'rate':
+			self.rate = value
+		if name == 'pitch':
+			self.rate = value
+		if name == 'language':
+			self.language = value
+		if name == 'volume':
+			self.volume = value
