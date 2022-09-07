@@ -18,7 +18,6 @@ setup(
 	description='a pyttsx3 driver for baidu device, it use baidu.speech.tts.',
 	long_description=long_description,
 	long_description_content_type="text/markdown",
-	summary='split text to sentences',
 	author='Yu Moqing',
 	url='https://github.com/yumoqing/xfyun_tts',
 	author_email='yumoqing@gmail.com',

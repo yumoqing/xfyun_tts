@@ -20,6 +20,14 @@ from unitts.voice import Voice
 from websocket import WebSocketApp
 
 import tempfile
+import wave
+
+def wavhead(wavfile, nchannels=1, framerate=16000):
+	wf = wave.open(wavfile, 'wb')
+	wf.setnchannels(nchannels)
+	wf.setsampwidth(2)
+	wf.setframerate(framerate)
+	return wf
 
 def temp_file(suffix='.txt'):
 	x = tempfile.mkstemp(suffix=suffix)
@@ -65,10 +73,11 @@ class XFYunTTSDriver(BaseDriver):
 		}
 		buf = json.dumps(d)
 		self.ws.send(buf)
+		audiofile = temp_file(suffix='.wav')
+		self.wav_fd = wavhead(audiofile)
 		d = self.ws.recv()
-		audiofile = temp_file(suffix='.pcm')
 		while True:
-			ret = self.on_message(d, audiofile)
+			ret = self.on_message(d)
 			print('ret=', ret)
 			if ret == 'Done':
 				return audiofile
@@ -119,7 +128,7 @@ class XFYunTTSDriver(BaseDriver):
 		}
 		return data
 
-	def on_message(self, message, audiofile):
+	def on_message(self, message):
 		try:
 			message =json.loads(message)
 			code = message["code"]
@@ -133,9 +142,9 @@ class XFYunTTSDriver(BaseDriver):
 				print("sid:%s call error:%s code is:%s" % (sid, errMsg, code))
 				return 'ServerError'
 			else:
-				with open(audiofile, 'ab') as f:
-					f.write(audio)
+				self.wav_fd.writeframes(audio)
 			if status == 2:   # audio finish
+				self.wav_fd.close()
 				return 'Done'
 			return 'KeepGoing'
 		except Exception as e:
